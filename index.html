@@ -1,160 +1,1005 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kitchen Master Pro v10</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <style>
-        :root { --bg: #f0f2f5; --card: white; --text: #333; --primary: #6c5ce7; --urgent: #ff7675; --warning: #ffa502; --fresh: #2ed573; }
-        .dark-mode { --bg: #1a1a1a; --card: #2d2d2d; --text: #eee; --primary: #a29bfe; }
-        
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); transition: 0.3s; margin: 0; padding: 10px; }
-        .container { max-width: 450px; margin: auto; background: var(--card); padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #moneySaved { background: var(--fresh); color: white; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
-        
-        #priorityAlert { display: none; background: var(--urgent); color: white; padding: 10px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; }
-
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin: 5px 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--primary); color: white; }
-        
-        input, select { width: 100%; padding: 12px; margin: 5px 0; border: 2px solid #ddd; border-radius: 10px; background: var(--card); color: var(--text); box-sizing: border-box; }
-        
-        .cat-tag { font-size: 10px; font-weight: bold; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: #eee; color: #666; display: inline-block; margin-top: 5px; }
-        
-        .category-group { text-align: left; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
-        .category-title { font-size: 14px; font-weight: bold; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
-
-        .item { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 12px; background: var(--card); border-left: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .item-icon { font-size: 24px; margin-right: 12px; }
-        .item-info { flex-grow: 1; text-align: left; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CuisineNFC – Gestionnaire de cuisine</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fdfaf4;
+    --surface2: #eee8d8;
+    --green: #3a6b4a;
+    --green-light: #5a9a6a;
+    --green-pale: #d4e8da;
+    --amber: #c8832a;
+    --amber-pale: #faecd4;
+    --red: #c0392b;
+    --red-pale: #fde8e6;
+    --text: #2c2416;
+    --text-muted: #7a6e5e;
+    --border: #d8cfc0;
+    --shadow: 0 4px 24px rgba(44,36,22,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+  /* HEADER */
+  header {
+    background: var(--green);
+    color: white;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+  }
+  header h1 span { color: #a8d4b2; }
+  .nfc-btn {
+    background: white;
+    color: var(--green);
+    border: none;
+    padding: 8px 18px;
+    border-radius: 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .nfc-btn:hover { background: var(--green-pale); }
+  .nfc-icon { font-size: 1rem; }
+  /* NAV */
+  nav {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    gap: 0;
+    position: sticky; top: 64px; z-index: 99;
+  }
+  nav button {
+    background: none; border: none;
+    padding: 14px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  nav button.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+  /* MAIN */
+  main { padding: 24px; max-width: 900px; margin: 0 auto; }
+  /* TABS */
+  .tab { display: none; }
+  .tab.active { display: block; }
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card .number {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .stat-card .label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .stat-card.warning .number { color: var(--amber); }
+  .stat-card.danger .number { color: var(--red); }
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    margin-bottom: 14px;
+    color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .add-btn {
+    background: var(--green);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    transition: background 0.2s;
+  }
+  .add-btn:hover { background: var(--green-light); }
+  /* FILTER BAR */
+  .filter-bar {
+    display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-bar input {
+    flex: 1; min-width: 160px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 8px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-bar input:focus { border-color: var(--green); }
+  .filter-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-chip.active { background: var(--green-pale); border-color: var(--green); color: var(--green); }
+  /* FOOD GRID */
+  .food-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .food-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .food-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(44,36,22,0.12); }
+  .food-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--green);
+  }
+  .food-card.expiring::before { background: var(--amber); }
+  .food-card.expired::before { background: var(--red); }
+  .food-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .food-emoji { font-size: 2rem; line-height: 1; }
+  .food-actions { display: flex; gap: 4px; }
+  .icon-btn {
+    background: var(--surface2);
+    border: none;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .icon-btn:hover { background: var(--border); }
+  .food-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .food-category {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+  .food-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .badge {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .badge-qty { background: var(--green-pale); color: var(--green); }
+  .badge-ok { background: var(--green-pale); color: var(--green); }
+  .badge-expiring { background: var(--amber-pale); color: var(--amber); }
+  .badge-expired { background: var(--red-pale); color: var(--red); }
+  .nfc-tag {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 4px;
+  }
+  /* ALERT SECTION */
+  .alerts-section { margin-bottom: 28px; }
+  .alert-item {
+    background: var(--amber-pale);
+    border: 1px solid #e8c070;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.85rem;
+  }
+  .alert-item.expired {
+    background: var(--red-pale);
+    border-color: #e8a0a0;
+  }
+  .alert-icon { font-size: 1.2rem; }
+  .alert-text { flex: 1; }
+  .alert-text strong { display: block; margin-bottom: 2px; }
+  .alert-text span { color: var(--text-muted); font-size: 0.78rem; }
+  /* SHOPPING LIST */
+  .shopping-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .shopping-item input[type=checkbox] { accent-color: var(--green); width: 18px; height: 18px; cursor: pointer; }
+  .shopping-item label { flex: 1; font-size: 0.9rem; cursor: pointer; }
+  .shopping-item.done label { text-decoration: line-through; color: var(--text-muted); }
+  .shopping-qty { font-size: 0.8rem; color: var(--text-muted); }
+  .shopping-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+  /* HISTORY */
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.85rem;
+  }
+  .history-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 90px;
+  }
+  .history-action {
+    flex: 1;
+  }
+  .history-badge {
+    font-size: 0.72rem; padding: 2px 8px; border-radius: 10px;
+  }
+  .h-scan { background: #e0f0ff; color: #2060a0; }
+  .h-add { background: var(--green-pale); color: var(--green); }
+  .h-consume { background: #f0e8ff; color: #6040a0; }
+  .h-expire { background: var(--red-pale); color: var(--red); }
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 28px;
+    width: 90%; max-width: 460px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .btn-primary {
+    background: var(--green);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--green-light); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-secondary:hover { background: var(--border); }
+  /* NFC SCAN ANIMATION */
+  .nfc-scan-modal .nfc-animation {
+    text-align: center;
+    padding: 30px 0;
+  }
+  .nfc-ring {
+    width: 80px; height: 80px;
+    border: 3px solid var(--green);
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    position: relative;
+    animation: pulse 1.5s infinite;
+  }
+  .nfc-ring::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 3px solid var(--green-light);
+    border-radius: 50%;
+    animation: pulse 1.5s 0.3s infinite;
+  }
+  .nfc-ring::after {
+    content: '📡';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4rem;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+  }
+  /* RECIPE SECTION */
+  .recipe-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .recipe-card h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+  .recipe-ingredients { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .ingredient-tag {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: var(--green-pale);
+    color: var(--green);
+  }
+  .ingredient-tag.missing {
+    background: var(--red-pale);
+    color: var(--red);
+  }
+  .recipe-btn {
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--green);
+    background: none;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .recipe-btn:hover { background: var(--green); color: white; }
+  /* NUTRITION INFO */
+  .nutrition-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;
+  }
+  .nutrition-cell {
+    text-align: center;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .nutrition-cell .val { font-weight: 600; font-size: 0.9rem; }
+  .nutrition-cell .lbl { font-size: 0.65rem; color: var(--text-muted); }
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--text);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 0.85rem;
+    z-index: 999;
+    transition: transform 0.3s;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  @media (max-width: 500px) {
+    nav button { padding: 12px 10px; font-size: 0.75rem; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <button onclick="toggleDarkMode()" class="btn" style="width: 45px; background: #34495e;">🌓</button>
-        <div id="moneySaved">💰 ECO : 0.00 €</div>
+<header>
+  <h1>Cuisine<span>NFC</span></h1>
+  <button class="nfc-btn" onclick="openNfcScan()">
+    <span class="nfc-icon">📡</span> Scanner NFC
+  </button>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('inventaire', this)">🥕 Inventaire</button>
+  <button onclick="switchTab('alertes', this)">⚠️ Alertes</button>
+  <button onclick="switchTab('courses', this)">🛒 Courses</button>
+  <button onclick="switchTab('recettes', this)">👨‍🍳 Recettes</button>
+  <button onclick="switchTab('historique', this)">📋 Historique</button>
+</nav>
+
+<main>
+
+  <!-- INVENTAIRE -->
+  <div id="tab-inventaire" class="tab active">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="section-title">
+      <span>Mes aliments</span>
+      <button class="add-btn" onclick="openAddModal()">+ Ajouter</button>
     </div>
-
-    <div id="priorityAlert">⚠️ URGENCES : À CONSOMMER !</div>
-
-    <div id="reader" style="width:100%; border-radius:15px; overflow:hidden; background:#000;"></div>
-    
-    <input type="text" id="foodName" placeholder="Nom de l'aliment">
-    
-    <select id="foodCategory">
-        <option value="Autre">📦 Autre</option>
-        <option value="Viande">🥩 Viande / Poisson</option>
-        <option value="Légumes">🥦 Fruits & Légumes</option>
-        <option value="Laitier">🧀 Produits Laitiers</option>
-        <option value="Féculents">🍝 Féculents / Pain</option>
-        <option value="Boissons">🥤 Boissons</option>
-        <option value="Surgelés">❄️ Surgelés</option>
-    </select>
-
-    <div style="background: #f9f9f9; padding: 10px; border-radius: 15px; border: 1px dashed var(--primary);">
-        <button class="btn btn-primary" onclick="readDateWithIA()">🔍 SCANNER DATE IA</button>
-        <input type="date" id="expiryDate">
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Rechercher un aliment…" oninput="renderInventaire()">
+      <button class="filter-chip active" onclick="setFilter('all', this)">Tout</button>
+      <button class="filter-chip" onclick="setFilter('frigo', this)">❄️ Frigo</button>
+      <button class="filter-chip" onclick="setFilter('placard', this)">🚪 Placard</button>
+      <button class="filter-chip" onclick="setFilter('congelateur', this)">🧊 Congélo</button>
     </div>
+    <div class="food-grid" id="food-grid"></div>
+  </div>
 
-    <button class="btn btn-primary" style="background:#1877f2; margin-top:10px;" onclick="addToStock()">💾 AJOUTER AU STOCK</button>
+  <!-- ALERTES -->
+  <div id="tab-alertes" class="tab">
+    <div class="section-title">Alertes de péremption</div>
+    <div id="alerts-list"></div>
+  </div>
 
-    <input type="text" id="searchInput" placeholder="🔍 Rechercher un produit..." oninput="render()" style="margin-top:20px;">
+  <!-- COURSES -->
+  <div id="tab-courses" class="tab">
+    <div class="section-title">
+      <span>Liste de courses</span>
+      <button class="add-btn" onclick="openAddCourse()">+ Ajouter</button>
+    </div>
+    <div class="shopping-actions">
+      <button class="btn-secondary" style="font-size:0.8rem;padding:8px 14px;" onclick="autoFillShopping()">🤖 Remplissage auto</button>
+      <button class="btn-secondary" style="font-size:0.8rem;padding:8px 14px;" onclick="clearDone()">🗑️ Supprimer cochés</button>
+    </div>
+    <div id="shopping-list"></div>
+  </div>
 
-    <div id="inventory"></div>
+  <!-- RECETTES -->
+  <div id="tab-recettes" class="tab">
+    <div class="section-title">Recettes suggérées</div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">Basées sur votre inventaire actuel ✨</p>
+    <div id="recipes-list"></div>
+  </div>
+
+  <!-- HISTORIQUE -->
+  <div id="tab-historique" class="tab">
+    <div class="section-title">Historique des actions</div>
+    <div id="history-list"></div>
+  </div>
+
+</main>
+
+<!-- MODAL AJOUTER/MODIFIER -->
+<div class="modal-overlay" id="food-modal">
+  <div class="modal">
+    <h2 id="modal-title">Ajouter un aliment</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Emoji</label>
+        <input type="text" id="f-emoji" placeholder="🥕" maxlength="2">
+      </div>
+      <div class="form-group">
+        <label>Catégorie</label>
+        <select id="f-cat">
+          <option value="frigo">❄️ Frigo</option>
+          <option value="placard">🚪 Placard</option>
+          <option value="congelateur">🧊 Congélo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Nom de l'aliment</label>
+      <input type="text" id="f-name" placeholder="Ex: Carottes bio">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantité</label>
+        <input type="text" id="f-qty" placeholder="Ex: 500g, 3 pièces">
+      </div>
+      <div class="form-group">
+        <label>Date de péremption</label>
+        <input type="date" id="f-exp">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Calories (pour 100g)</label>
+        <input type="number" id="f-cal" placeholder="kcal">
+      </div>
+      <div class="form-group">
+        <label>Protéines (g)</label>
+        <input type="number" id="f-prot" placeholder="g">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Glucides (g)</label>
+        <input type="number" id="f-gluc" placeholder="g">
+      </div>
+      <div class="form-group">
+        <label>Lipides (g)</label>
+        <input type="number" id="f-lip" placeholder="g">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Identifiant NFC</label>
+      <input type="text" id="f-nfc" placeholder="Ex: NFC-001 (ou scanner automatique)">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('food-modal')">Annuler</button>
+      <button class="btn-primary" onclick="saveFood()">Enregistrer</button>
+    </div>
+  </div>
 </div>
 
+<!-- MODAL NFC SCAN -->
+<div class="modal-overlay nfc-scan-modal" id="nfc-modal">
+  <div class="modal" style="text-align:center;">
+    <h2>Scan NFC</h2>
+    <div class="nfc-animation">
+      <div class="nfc-ring"></div>
+      <p style="color:var(--text-muted);font-size:0.9rem;" id="nfc-status">Approchez votre badge NFC…</p>
+    </div>
+    <button class="btn-secondary" onclick="simulateScan()">Simuler un scan</button>
+    <button class="btn-secondary" style="margin-left:8px;" onclick="closeModal('nfc-modal')">Fermer</button>
+  </div>
+</div>
+
+<!-- MODAL COURSES -->
+<div class="modal-overlay" id="course-modal">
+  <div class="modal">
+    <h2>Ajouter à la liste</h2>
+    <div class="form-group">
+      <label>Article</label>
+      <input type="text" id="c-name" placeholder="Ex: Lait entier">
+    </div>
+    <div class="form-group">
+      <label>Quantité</label>
+      <input type="text" id="c-qty" placeholder="Ex: 2L">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('course-modal')">Annuler</button>
+      <button class="btn-primary" onclick="saveCourse()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
 <script>
-    const categories = {
-        "Viande": "🥩", "Légumes": "🥦", "Laitier": "🧀", 
-        "Féculents": "🍝", "Boissons": "🥤", "Surgelés": "❄️", "Autre": "📦"
-    };
+// ========== DATA ==========
+let foods = [
+  { id: 1, emoji: '🥕', name: 'Carottes bio', category: 'frigo', qty: '500g', expDate: futureDays(5), nfc: 'NFC-001', cal: 41, prot: 0.9, gluc: 9.6, lip: 0.2 },
+  { id: 2, emoji: '🥛', name: 'Lait demi-écrémé', category: 'frigo', qty: '1L', expDate: futureDays(2), nfc: 'NFC-002', cal: 46, prot: 3.2, gluc: 4.8, lip: 1.5 },
+  { id: 3, emoji: '🧀', name: 'Emmental', category: 'frigo', qty: '250g', expDate: futureDays(12), nfc: 'NFC-003', cal: 380, prot: 28, gluc: 0.5, lip: 29 },
+  { id: 4, emoji: '🍗', name: 'Poulet rôti', category: 'frigo', qty: '800g', expDate: futureDays(-1), nfc: 'NFC-004', cal: 165, prot: 31, gluc: 0, lip: 3.6 },
+  { id: 5, emoji: '🍝', name: 'Pâtes complètes', category: 'placard', qty: '500g', expDate: futureDays(180), nfc: 'NFC-005', cal: 352, prot: 13, gluc: 70, lip: 2 },
+  { id: 6, emoji: '🥫', name: 'Tomates pelées', category: 'placard', qty: '2 boîtes', expDate: futureDays(365), nfc: 'NFC-006', cal: 25, prot: 1.3, gluc: 4.5, lip: 0.3 },
+  { id: 7, emoji: '🧊', name: 'Épinards surgelés', category: 'congelateur', qty: '750g', expDate: futureDays(90), nfc: 'NFC-007', cal: 23, prot: 2.9, gluc: 3.6, lip: 0.4 },
+  { id: 8, emoji: '🥚', name: 'Œufs (x12)', category: 'frigo', qty: '12 pièces', expDate: futureDays(3), nfc: 'NFC-008', cal: 155, prot: 13, gluc: 1.1, lip: 11 },
+];
 
-    let inventory = JSON.parse(localStorage.getItem('foodStock')) || [];
-    let savings = parseFloat(localStorage.getItem('savings')) || 0;
-    let isDark = localStorage.getItem('darkMode') === 'true';
+let shopping = [
+  { id: 1, name: 'Yaourts nature', qty: 'x6', done: false },
+  { id: 2, name: 'Beurre doux', qty: '250g', done: false },
+  { id: 3, name: 'Farine T55', qty: '1kg', done: true },
+];
 
-    if(isDark) document.body.classList.add('dark-mode');
+let history = [
+  { date: '25/02/2026 09:14', action: 'Scan NFC – Lait demi-écrémé (NFC-002)', type: 'scan' },
+  { date: '24/02/2026 18:32', action: 'Ajout – Épinards surgelés', type: 'add' },
+  { date: '24/02/2026 12:05', action: 'Consommé – Yaourts nature (500g)', type: 'consume' },
+  { date: '23/02/2026 20:11', action: 'Périmé – Jus d\'orange', type: 'expire' },
+  { date: '22/02/2026 17:44', action: 'Scan NFC – Carottes bio (NFC-001)', type: 'scan' },
+];
 
-    function addToStock() {
-        const name = document.getElementById('foodName').value;
-        const date = document.getElementById('expiryDate').value;
-        const cat = document.getElementById('foodCategory').value;
-        if(!name || !date) return alert("Remplis le nom et la date !");
+let editingId = null;
+let currentFilter = 'all';
+let recipes = [
+  {
+    name: 'Gratin de pâtes au poulet',
+    time: '35 min',
+    ingredients: ['Pâtes complètes', 'Poulet rôti', 'Emmental', 'Lait demi-écrémé'],
+    missing: ['Béchamel']
+  },
+  {
+    name: 'Omelette aux épinards',
+    time: '15 min',
+    ingredients: ['Œufs (x12)', 'Épinards surgelés', 'Emmental'],
+    missing: []
+  },
+  {
+    name: 'Sauce tomate maison',
+    time: '20 min',
+    ingredients: ['Tomates pelées', 'Carottes bio'],
+    missing: ['Oignon', 'Ail']
+  },
+];
 
-        inventory.push({ name, date, cat });
-        save(); render();
-        // Reset
-        document.getElementById('foodName').value = "";
+function futureDays(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function daysUntil(dateStr) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const exp = new Date(dateStr);
+  return Math.round((exp - today) / 86400000);
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('fr-FR');
+}
+
+// ========== RENDER ==========
+function renderAll() {
+  renderStats();
+  renderInventaire();
+  renderAlerts();
+  renderShopping();
+  renderRecipes();
+  renderHistory();
+}
+
+function renderStats() {
+  const total = foods.length;
+  const expiring = foods.filter(f => { const d = daysUntil(f.expDate); return d >= 0 && d <= 3; }).length;
+  const expired = foods.filter(f => daysUntil(f.expDate) < 0).length;
+  const scanned = foods.filter(f => f.nfc).length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="number">${total}</div><div class="label">Aliments recensés</div></div>
+    <div class="stat-card"><div class="number">${scanned}</div><div class="label">Badges NFC actifs</div></div>
+    <div class="stat-card warning"><div class="number">${expiring}</div><div class="label">Expirent bientôt</div></div>
+    <div class="stat-card danger"><div class="number">${expired}</div><div class="label">Périmés</div></div>
+  `;
+}
+
+function renderInventaire() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  let filtered = foods;
+  if (currentFilter !== 'all') filtered = filtered.filter(f => f.category === currentFilter);
+  if (search) filtered = filtered.filter(f => f.name.toLowerCase().includes(search));
+
+  document.getElementById('food-grid').innerHTML = filtered.map(f => {
+    const days = daysUntil(f.expDate);
+    let cardClass = '';
+    let badgeHtml = '';
+    if (days < 0) { cardClass = 'expired'; badgeHtml = `<span class="badge badge-expired">⚠️ Périmé</span>`; }
+    else if (days <= 3) { cardClass = 'expiring'; badgeHtml = `<span class="badge badge-expiring">⏰ ${days}j restants</span>`; }
+    else { badgeHtml = `<span class="badge badge-ok">✓ ${days}j</span>`; }
+    return `
+    <div class="food-card ${cardClass}">
+      <div class="food-card-header">
+        <span class="food-emoji">${f.emoji}</span>
+        <div class="food-actions">
+          <button class="icon-btn" onclick="editFood(${f.id})" title="Modifier">✏️</button>
+          <button class="icon-btn" onclick="deleteFood(${f.id})" title="Supprimer">🗑️</button>
+        </div>
+      </div>
+      <div class="food-name">${f.name}</div>
+      <div class="food-category">${f.category === 'frigo' ? '❄️ Frigo' : f.category === 'placard' ? '🚪 Placard' : '🧊 Congélo'}</div>
+      <div class="food-meta">
+        <span class="badge badge-qty">📦 ${f.qty}</span>
+        ${badgeHtml}
+      </div>
+      <div class="nutrition-grid">
+        <div class="nutrition-cell"><div class="val">${f.cal}</div><div class="lbl">kcal</div></div>
+        <div class="nutrition-cell"><div class="val">${f.prot}g</div><div class="lbl">Protéines</div></div>
+        <div class="nutrition-cell"><div class="val">${f.gluc}g</div><div class="lbl">Glucides</div></div>
+        <div class="nutrition-cell"><div class="val">${f.lip}g</div><div class="lbl">Lipides</div></div>
+      </div>
+      ${f.nfc ? `<div class="nfc-tag" style="margin-top:10px;">📡 ${f.nfc} · Exp. ${formatDate(f.expDate)}</div>` : ''}
+    </div>`;
+  }).join('');
+  if (!filtered.length) {
+    document.getElementById('food-grid').innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Aucun aliment trouvé.</p>';
+  }
+}
+
+function renderAlerts() {
+  const expiring = foods.filter(f => { const d = daysUntil(f.expDate); return d >= 0 && d <= 3; });
+  const expired = foods.filter(f => daysUntil(f.expDate) < 0);
+  let html = '';
+  if (!expiring.length && !expired.length) {
+    html = '<p style="color:var(--text-muted);font-size:0.9rem;">Aucune alerte pour le moment 🎉</p>';
+  }
+  expired.forEach(f => {
+    html += `<div class="alert-item expired"><span class="alert-icon">🔴</span><div class="alert-text"><strong>${f.emoji} ${f.name}</strong><span>Périmé depuis le ${formatDate(f.expDate)} · ${f.nfc || 'Pas de tag NFC'}</span></div><button class="icon-btn" onclick="deleteFood(${f.id})">🗑️</button></div>`;
+  });
+  expiring.forEach(f => {
+    const d = daysUntil(f.expDate);
+    html += `<div class="alert-item"><span class="alert-icon">🟡</span><div class="alert-text"><strong>${f.emoji} ${f.name}</strong><span>Expire dans ${d} jour(s) – le ${formatDate(f.expDate)}</span></div></div>`;
+  });
+  document.getElementById('alerts-list').innerHTML = html;
+}
+
+function renderShopping() {
+  document.getElementById('shopping-list').innerHTML = shopping.map(s => `
+    <div class="shopping-item ${s.done ? 'done' : ''}">
+      <input type="checkbox" id="s${s.id}" ${s.done ? 'checked' : ''} onchange="toggleShopping(${s.id})">
+      <label for="s${s.id}">${s.name}</label>
+      <span class="shopping-qty">${s.qty}</span>
+      <button class="icon-btn" onclick="removeShopping(${s.id})">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function renderRecipes() {
+  document.getElementById('recipes-list').innerHTML = recipes.map(r => `
+    <div class="recipe-card">
+      <h3>👨‍🍳 ${r.name} <span style="font-size:0.75rem;color:var(--text-muted);font-family:DM Sans;">⏱ ${r.time}</span></h3>
+      <div class="recipe-ingredients">
+        ${r.ingredients.map(i => `<span class="ingredient-tag">${i}</span>`).join('')}
+        ${r.missing.map(i => `<span class="ingredient-tag missing">❌ ${i}</span>`).join('')}
+      </div>
+      ${r.missing.length ? `<p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Il vous manque : ${r.missing.join(', ')}</p>` : '<p style="font-size:0.75rem;color:var(--green);margin-bottom:8px;">✓ Tous les ingrédients disponibles !</p>'}
+      <button class="recipe-btn" onclick="addMissingToShopping('${r.name}', ${JSON.stringify(r.missing)})">Ajouter manquants aux courses</button>
+    </div>
+  `).join('');
+}
+
+function renderHistory() {
+  const types = { scan: 'h-scan', add: 'h-add', consume: 'h-consume', expire: 'h-expire' };
+  const labels = { scan: 'Scan', add: 'Ajout', consume: 'Consommé', expire: 'Périmé' };
+  document.getElementById('history-list').innerHTML = history.map(h => `
+    <div class="history-item">
+      <span class="history-date">${h.date}</span>
+      <span class="history-action">${h.action}</span>
+      <span class="history-badge ${types[h.type]}">${labels[h.type]}</span>
+    </div>
+  `).join('');
+}
+
+// ========== INTERACTIONS ==========
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderInventaire();
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Ajouter un aliment';
+  ['f-emoji','f-name','f-qty','f-exp','f-nfc','f-cal','f-prot','f-gluc','f-lip'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('food-modal').classList.add('open');
+}
+
+function editFood(id) {
+  const f = foods.find(x => x.id === id);
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Modifier un aliment';
+  document.getElementById('f-emoji').value = f.emoji;
+  document.getElementById('f-name').value = f.name;
+  document.getElementById('f-cat').value = f.category;
+  document.getElementById('f-qty').value = f.qty;
+  document.getElementById('f-exp').value = f.expDate;
+  document.getElementById('f-nfc').value = f.nfc || '';
+  document.getElementById('f-cal').value = f.cal || '';
+  document.getElementById('f-prot').value = f.prot || '';
+  document.getElementById('f-gluc').value = f.gluc || '';
+  document.getElementById('f-lip').value = f.lip || '';
+  document.getElementById('food-modal').classList.add('open');
+}
+
+function saveFood() {
+  const f = {
+    emoji: document.getElementById('f-emoji').value || '🍽️',
+    name: document.getElementById('f-name').value.trim(),
+    category: document.getElementById('f-cat').value,
+    qty: document.getElementById('f-qty').value.trim(),
+    expDate: document.getElementById('f-exp').value,
+    nfc: document.getElementById('f-nfc').value.trim(),
+    cal: parseFloat(document.getElementById('f-cal').value) || 0,
+    prot: parseFloat(document.getElementById('f-prot').value) || 0,
+    gluc: parseFloat(document.getElementById('f-gluc').value) || 0,
+    lip: parseFloat(document.getElementById('f-lip').value) || 0,
+  };
+  if (!f.name) { showToast('Veuillez entrer un nom.'); return; }
+  if (editingId) {
+    const idx = foods.findIndex(x => x.id === editingId);
+    foods[idx] = { ...foods[idx], ...f };
+    addHistory(`Modifié – ${f.name}`, 'add');
+  } else {
+    f.id = Date.now();
+    foods.push(f);
+    addHistory(`Ajout – ${f.name}`, 'add');
+  }
+  closeModal('food-modal');
+  renderAll();
+  showToast(editingId ? 'Aliment modifié !' : 'Aliment ajouté !');
+}
+
+function deleteFood(id) {
+  const f = foods.find(x => x.id === id);
+  foods = foods.filter(x => x.id !== id);
+  addHistory(`Supprimé – ${f.name}`, 'expire');
+  renderAll();
+  showToast('Aliment supprimé.');
+}
+
+function openNfcScan() {
+  document.getElementById('nfc-status').textContent = 'Approchez votre badge NFC…';
+  document.getElementById('nfc-modal').classList.add('open');
+}
+
+function simulateScan() {
+  const random = foods[Math.floor(Math.random() * foods.length)];
+  document.getElementById('nfc-status').textContent = `✅ Détecté : ${random.emoji} ${random.name} (${random.nfc || 'NFC inconnu'})`;
+  addHistory(`Scan NFC – ${random.name} (${random.nfc || '?'})`, 'scan');
+  setTimeout(() => {
+    closeModal('nfc-modal');
+    renderAll();
+    showToast(`📡 Scanné : ${random.name}`);
+  }, 1800);
+}
+
+function toggleShopping(id) {
+  const s = shopping.find(x => x.id === id);
+  s.done = !s.done;
+  if (s.done) addHistory(`Acheté – ${s.name}`, 'consume');
+  renderShopping();
+  renderHistory();
+}
+
+function removeShopping(id) {
+  shopping = shopping.filter(x => x.id !== id);
+  renderShopping();
+}
+
+function openAddCourse() {
+  document.getElementById('c-name').value = '';
+  document.getElementById('c-qty').value = '';
+  document.getElementById('course-modal').classList.add('open');
+}
+
+function saveCourse() {
+  const name = document.getElementById('c-name').value.trim();
+  const qty = document.getElementById('c-qty').value.trim();
+  if (!name) { showToast('Entrez un article.'); return; }
+  shopping.push({ id: Date.now(), name, qty: qty || '1', done: false });
+  closeModal('course-modal');
+  renderShopping();
+  showToast('Article ajouté aux courses !');
+}
+
+function autoFillShopping() {
+  const expiring = foods.filter(f => daysUntil(f.expDate) <= 3 && daysUntil(f.expDate) >= 0);
+  let added = 0;
+  expiring.forEach(f => {
+    if (!shopping.find(s => s.name.toLowerCase() === f.name.toLowerCase())) {
+      shopping.push({ id: Date.now() + added, name: f.name, qty: f.qty, done: false });
+      added++;
     }
+  });
+  renderShopping();
+  showToast(added ? `${added} article(s) ajouté(s) auto !` : 'Rien à ajouter.');
+}
 
-    function toggleDarkMode() {
-        isDark = !isDark;
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', isDark);
+function clearDone() {
+  shopping = shopping.filter(s => !s.done);
+  renderShopping();
+  showToast('Articles cochés supprimés.');
+}
+
+function addMissingToShopping(recipeName, missing) {
+  missing.forEach(m => {
+    if (!shopping.find(s => s.name === m)) {
+      shopping.push({ id: Date.now(), name: m, qty: '1', done: false });
     }
+  });
+  renderShopping();
+  showToast(`Ingrédients manquants ajoutés pour "${recipeName}" !`);
+}
 
-    function consume(i) {
-        let price = (Math.random() * 3 + 1).toFixed(2);
-        savings += parseFloat(price);
-        inventory.splice(i, 1);
-        save(); render();
-    }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
 
-    function save() {
-        localStorage.setItem('foodStock', JSON.stringify(inventory));
-        localStorage.setItem('savings', savings);
-    }
+function addHistory(action, type) {
+  const now = new Date();
+  const date = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}`;
+  history.unshift({ date, action, type });
+}
 
-    function render() {
-        const invDiv = document.getElementById('inventory');
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        document.getElementById('moneySaved').innerText = `💰 ÉCO : ${savings.toFixed(2)} €`;
-        invDiv.innerHTML = "";
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
 
-        // Grouper par catégorie
-        const groups = {};
-        inventory.forEach((it, index) => {
-            if(it.name.toLowerCase().includes(search)) {
-                if(!groups[it.cat]) groups[it.cat] = [];
-                groups[it.cat].push({...it, originalIndex: index});
-            }
-        });
+// Click outside modal to close
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
 
-        for(let cat in groups) {
-            let section = document.createElement('div');
-            section.className = 'category-group';
-            section.innerHTML = `<div class="category-title">${categories[cat]} ${cat}</div>`;
-            
-            groups[cat].forEach(it => {
-                let diff = (new Date(it.date) - new Date()) / 86400000;
-                let cls = diff < 0 ? 'urgent' : (diff < 2 ? 'warning' : 'fresh');
-                
-                section.innerHTML += `
-                    <div class="item" style="border-left-color: var(--${cls})">
-                        <div class="item-icon">${categories[cat]}</div>
-                        <div class="item-info">
-                            <b>${it.name}</b><br><small>DLC: ${it.date}</small>
-                        </div>
-                        <button onclick="consume(${it.originalIndex})" style="border:none; background:none; font-size:22px;">✅</button>
-                    </div>`;
-            });
-            invDiv.appendChild(section);
-        }
-    }
-
-    // Le scanner et l'IA (Tesseract) restent les mêmes
-    function readDateWithIA() {
-        // ... (Code IA des versions précédentes) ...
-        alert("Analyse de la date en cours...");
-    }
-
-    render();
+renderAll();
 </script>
 </body>
 </html>
