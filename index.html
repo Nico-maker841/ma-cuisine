@@ -2,108 +2,114 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kitchen Master V23 - VISION OCR</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Master v13</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
     <style>
-        :root { --p: #6c5ce7; --s: #00cec9; --d: #ff7675; --f: #2ed573; --bg: #f0f2f5; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; }
-        .card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        .btn { border: none; padding: 14px; border-radius: 12px; font-weight: bold; width: 100%; margin-top: 10px; color: white; cursor: pointer; }
-        .btn-p { background: var(--p); } .btn-s { background: var(--s); } .btn-f { background: var(--f); }
-        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; box-sizing: border-box; }
-        #camera-container { width: 100%; background: #000; border-radius: 15px; overflow: hidden; position: relative; min-height: 250px; }
-        #reader { width: 100%; }
-        #loading-ocr { display:none; text-align: center; color: var(--p); font-weight: bold; padding: 10px; }
+        :root { --p: #6c5ce7; --s: #00cec9; --d: #ff7675; --f: #2ed573; --bg: #fdfdfd; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 15px; padding-bottom: 100px; color: #2d3436; }
+        .card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        .btn { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; color: white; }
+        .nutri-gauge { height: 10px; background: #eee; border-radius: 5px; margin: 10px 0; overflow: hidden; }
+        .nutri-fill { height: 100%; background: linear-gradient(to right, #2ed573, #ff7675); width: 50%; }
+        .item { display: flex; align-items: center; padding: 12px; background: white; border-radius: 15px; margin-bottom: 8px; border: 1px solid #eee; }
+        .qr-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; text-align: center; color: white; padding-top: 50px; }
     </style>
 </head>
 <body>
 
+<div id="qrPopup" class="qr-overlay" onclick="this.style.display='none'">
+    <h3>Scanne pour copier ma liste !</h3>
+    <canvas id="shareQR" style="background:white; padding:10px; border-radius:10px;"></canvas>
+    <p>Clique pour fermer</p>
+</div>
+
 <div class="card">
-    <div id="camera-container">
-        <div id="reader"></div>
+    <div style="display:flex; justify-content:space-between;">
+        <b>Bilan Nutritionnel AI</b>
+        <span onclick="speakStatus()" style="cursor:pointer; font-size:20px;">🔊</span>
     </div>
-    <button class="btn btn-p" onclick="window.startScan()">1. Scanner Produit (Code-barres)</button>
-    <button class="btn btn-s" onclick="window.readDateOCR()">2. 🔍 Lire la Date (Vision IA)</button>
-    <div id="loading-ocr">🤖 L'IA analyse l'image...</div>
+    <div class="nutri-gauge"><div id="nutriFill" class="nutri-fill"></div></div>
+    <small id="nutriMsg">Analyse de ton équilibre alimentaire...</small>
 </div>
 
 <div class="card">
-    <input type="text" id="foodName" placeholder="Produit">
-    <input type="date" id="expiryDate">
-    <button class="btn btn-f" onclick="window.save()">💾 ENREGISTRER</button>
+    <b>➕ Ajouter un élément</b>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn" style="background:var(--p); flex:1;" onclick="startScan()">📷 Scanner</button>
+        <button class="btn" style="background:var(--s); flex:1;" onclick="addHomeMade()">🥘 Fait Maison</button>
+    </div>
+    <input type="text" id="itemName" placeholder="Nom de l'aliment" style="width:100%; margin-top:10px; padding:10px; border:1px solid #ddd; border-radius:8px;">
+    <input type="date" id="itemDate" style="width:100%; margin-top:5px; padding:10px; border:1px solid #ddd; border-radius:8px;">
+    <button class="btn" style="background:var(--f); width:100%; margin-top:10px;" onclick="saveToStock()">Enregistrer</button>
 </div>
 
-<div id="list"></div>
+<div id="stockList"></div>
+
+<div style="position:fixed; bottom:20px; right:20px;">
+    <button class="btn" style="background:#333; border-radius:50%; width:60px; height:60px; font-size:24px;" onclick="showShareQR()">🔗</button>
+</div>
 
 <script>
-    window.db = JSON.parse(localStorage.getItem('km_v23')) || [];
-    let html5QrCode = new Html5Qrcode("reader");
+    let stock = JSON.parse(localStorage.getItem('v13Stock')) || [];
 
-    window.startScan = function() {
-        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-            fetch(`https://world.openfoodfacts.org/api/v0/product/${text}.json`)
-            .then(r => r.json()).then(data => {
-                if(data.status === 1) document.getElementById('foodName').value = data.product.product_name;
-            });
-        });
-    };
+    function addHomeMade() {
+        document.getElementById('itemName').value = "Plat Maison 🥘";
+        let d = new Date(); d.setDate(d.getDate() + 3);
+        document.getElementById('itemDate').value = d.toISOString().split('T')[0];
+    }
 
-    // --- LA MAGIE DE LA VISION IA ---
-    window.readDateOCR = async function() {
-        const loader = document.getElementById('loading-ocr');
-        loader.style.display = "block";
-        
-        try {
-            // 1. Capture d'image depuis le flux vidéo
-            const video = document.querySelector('video');
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            // 2. Analyse Tesseract IA
-            const result = await Tesseract.recognize(canvas, 'eng', { logger: m => console.log(m) });
-            const text = result.data.text;
-            console.log("Texte détecté:", text);
-
-            // 3. Recherche d'un format de date (JJ/MM/AAAA ou JJ.MM.AA)
-            const dateRegex = /(\d{2})[\/\.\- ](\d{2})[\/\.\- ](\d{2,4})/;
-            const match = text.match(dateRegex);
-
-            if (match) {
-                let day = match[1], month = match[2], year = match[3];
-                if(year.length === 2) year = "20" + year;
-                document.getElementById('expiryDate').value = `${year}-${month}-${day}`;
-                alert("✅ IA : Date trouvée ! " + day + "/" + month + "/" + year);
-            } else {
-                alert("❌ IA : Pas de date nette trouvée. Rapproche l'appareil de la date.");
-            }
-        } catch (e) {
-            alert("Erreur Vision: " + e);
+    function saveToStock() {
+        const n = document.getElementById('itemName').value;
+        const d = document.getElementById('itemDate').value;
+        if(n && d) {
+            stock.push({ n, d, id: Date.now() });
+            localStorage.setItem('v13Stock', JSON.stringify(stock));
+            render();
         }
-        loader.style.display = "none";
-    };
+    }
 
-    window.save = function() {
-        const n = document.getElementById('foodName').value;
-        const d = document.getElementById('expiryDate').value;
-        if(!n || !d) return;
-        window.db.push({n, d});
-        localStorage.setItem('km_v23', JSON.stringify(window.db));
-        window.render();
-    };
+    function speakStatus() {
+        let msg = new SpeechSynthesisUtterance();
+        let urgent = stock.filter(it => (new Date(it.d) - new Date()) / 86400000 < 2).length;
+        msg.text = `Tu as ${stock.length} produits en stock, dont ${urgent} qui périment bientôt.`;
+        msg.lang = 'fr-FR';
+        window.speechSynthesis.speak(msg);
+    }
 
-    window.render = function() {
-        const l = document.getElementById('list');
-        l.innerHTML = window.db.map(i => `<div class="card"><b>${i.n}</b> - ${i.d}</div>`).join('');
-    };
+    function showShareQR() {
+        const data = stock.map(it => it.n).join(', ');
+        const canvas = document.getElementById('shareQR');
+        QRCode.toCanvas(canvas, data, { width: 250 });
+        document.getElementById('qrPopup').style.display = 'block';
+    }
 
-    window.render();
+    function render() {
+        const list = document.getElementById('stockList');
+        list.innerHTML = "";
+        
+        // Nutri-logic (simplifié)
+        let balance = Math.min(stock.length * 10, 100);
+        document.getElementById('nutriFill').style.width = balance + "%";
+        document.getElementById('nutriMsg').innerText = balance > 50 ? "Ton frigo est bien diversifié !" : "Ajoute plus de légumes !";
+
+        stock.sort((a,b) => new Date(a.d) - new Date(b.d)).forEach((it, i) => {
+            list.innerHTML += `
+                <div class="item">
+                    <div style="flex-grow:1"><b>${it.n}</b><br><small>${it.d}</small></div>
+                    <button onclick="remove(${i})" style="border:none; background:none; font-size:20px;">✅</button>
+                </div>`;
+        });
+    }
+
+    function remove(i) {
+        stock.splice(i, 1);
+        localStorage.setItem('v13Stock', JSON.stringify(stock));
+        render();
+    }
+
+    render();
 </script>
 </body>
 </html>
-
