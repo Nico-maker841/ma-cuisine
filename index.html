@@ -3,262 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kitchen Master - VERSION FINALE V20</title>
+    <title>Kitchen Master V23 - VISION OCR</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <style>
-        :root { --p: #6c5ce7; --s: #00cec9; --d: #ff7675; --f: #2ed573; --bg: #f0f2f5; --card: #ffffff; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); margin: 0; padding: 12px; padding-bottom: 50px; color: #333; }
-        
-        #appStatus { background:#2ed573; color:white; text-align:center; padding:8px; border-radius:12px; margin-bottom:15px; font-weight:bold; font-size:12px; }
-        
-        .card { background: var(--card); padding: 18px; border-radius: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.06); margin-bottom: 15px; }
-        h3 { margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-
-        /* Stats */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
-        .stat-box { background: #f8f9fa; padding: 12px; border-radius: 18px; text-align: center; border: 1px solid #eee; }
-        .stat-box span { font-size: 20px; font-weight: bold; color: var(--p); display: block; }
-        .stat-box label { font-size: 10px; color: #888; text-transform: uppercase; }
-
-        /* Tabs */
-        .tab-container { display: flex; background: #eee; padding: 5px; border-radius: 16px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; border: none; padding: 12px 0; border-radius: 12px; font-weight: bold; background: transparent; color: #777; transition: 0.2s; font-size: 12px; }
-        .tab-btn.active { background: white; color: var(--p); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-
-        /* Boutons */
-        .btn { border: none; padding: 15px; border-radius: 15px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; }
-        .btn:active { transform: scale(0.97); }
-        .btn-p { background: var(--p); } 
-        .btn-s { background: var(--s); } 
-        .btn-f { background: var(--f); }
-        .btn-light { background: #f1f2f6; color: #2d3436; border: 1px solid #ddd; }
-        
-        input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #ddd; margin-top: 8px; box-sizing: border-box; font-size: 15px; }
-        
-        /* Liste items */
-        .food-item { display: flex; align-items: center; padding: 15px; background: white; border-radius: 20px; margin-bottom: 10px; border-left: 6px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        .food-info { flex-grow: 1; }
-        .food-info b { font-size: 16px; color: #2d3436; }
-        .food-info small { color: #888; display: block; margin-top: 2px; }
-        
-        #aiResponse { display: none; background: #e1fbff; color: #0984e3; padding: 15px; border-radius: 15px; border-left: 5px solid var(--s); margin: 10px 0; font-size: 13px; line-height: 1.5; }
-
-        #cameraBox { background: #000; min-height: 250px; border-radius: 20px; position: relative; overflow: hidden; }
+        :root { --p: #6c5ce7; --s: #00cec9; --d: #ff7675; --f: #2ed573; --bg: #f0f2f5; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; }
+        .card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .btn { border: none; padding: 14px; border-radius: 12px; font-weight: bold; width: 100%; margin-top: 10px; color: white; cursor: pointer; }
+        .btn-p { background: var(--p); } .btn-s { background: var(--s); } .btn-f { background: var(--f); }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; box-sizing: border-box; }
+        #camera-container { width: 100%; background: #000; border-radius: 15px; overflow: hidden; position: relative; min-height: 250px; }
         #reader { width: 100%; }
+        #loading-ocr { display:none; text-align: center; color: var(--p); font-weight: bold; padding: 10px; }
     </style>
 </head>
 <body>
 
-<div id="appStatus">✅ Système Opérationnel</div>
-
 <div class="card">
-    <h3>📊 Mon Impact</h3>
-    <div class="stats-grid">
-        <div class="stat-box"><span id="statMoney">0</span><label>€ Économisés</label></div>
-        <div class="stat-box"><span id="statCo2">0</span><label>kg CO2 Évités</label></div>
-    </div>
-    <div style="height: 140px; width: 100%;">
-        <canvas id="mainChart"></canvas>
-    </div>
-</div>
-
-<div class="card">
-    <h3>📷 Ajout Rapide</h3>
-    <div id="cameraBox">
-        <button id="btnStartCam" class="btn btn-p" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:70%; z-index:10;" onclick="window.startCamera()">Allumer la Caméra</button>
+    <div id="camera-container">
         <div id="reader"></div>
     </div>
-    <button class="btn btn-light" id="btnFlash" onclick="window.toggleFlash()" style="display:none;">🔦 Allumer le Flash</button>
+    <button class="btn btn-p" onclick="window.startScan()">1. Scanner Produit (Code-barres)</button>
+    <button class="btn btn-s" onclick="window.readDateOCR()">2. 🔍 Lire la Date (Vision IA)</button>
+    <div id="loading-ocr">🤖 L'IA analyse l'image...</div>
 </div>
 
 <div class="card">
-    <div class="tab-container">
-        <button id="btnFrigo" class="tab-btn active" onclick="window.switchZone('Frigo')">🧊 Frigo</button>
-        <button id="btnCongelo" class="tab-btn" onclick="window.switchZone('Congelo')">❄️ Congélo</button>
-        <button id="btnCellier" class="tab-btn" onclick="window.switchZone('Cellier')">🏠 Cellier</button>
-    </div>
-
-    <input type="text" id="foodName" placeholder="Nom de l'aliment (ex: Poulet, Yaourt)">
+    <input type="text" id="foodName" placeholder="Produit">
     <input type="date" id="expiryDate">
-    
-    <div id="aiResponse"></div>
-
-    <div style="display: flex; gap: 10px;">
-        <button class="btn btn-p" style="flex: 1;" onclick="window.askSub()">🤖 Substitut</button>
-        <button class="btn btn-s" style="flex: 1;" onclick="window.askMenu()">👨‍🍳 Idée Menu</button>
-    </div>
-
-    <button class="btn btn-f" onclick="window.addFood()">💾 AJOUTER AU STOCK</button>
+    <button class="btn btn-f" onclick="window.save()">💾 ENREGISTRER</button>
 </div>
 
-<div id="foodList"></div>
+<div id="list"></div>
 
 <script>
-    // --- INITIALISATION DES VARIABLES ---
-    window.myDb = JSON.parse(localStorage.getItem('v20_db')) || [];
-    window.myStats = JSON.parse(localStorage.getItem('v20_stats')) || { eaten: 0, wasted: 0, money: 0, co2: 0 };
-    window.currentZone = 'Frigo';
-    window.scannerObj = null;
-    window.chartObj = null;
+    window.db = JSON.parse(localStorage.getItem('km_v23')) || [];
+    let html5QrCode = new Html5Qrcode("reader");
 
-    // --- LOGIQUE CAMERA & FLASH ---
-    window.startCamera = function() {
-        document.getElementById('btnStartCam').style.display = 'none';
-        document.getElementById('btnFlash').style.display = 'flex';
-        window.scannerObj = new Html5Qrcode("reader");
-        
-        window.scannerObj.start(
-            { facingMode: "environment" },
-            { fps: 15, qrbox: 250 },
-            function(text) {
-                fetch("https://world.openfoodfacts.org/api/v0/product/" + text + ".json")
-                .then(r => r.json()).then(d => {
-                    if(d.status === 1) {
-                        document.getElementById('foodName').value = d.product.product_name;
-                        if(navigator.vibrate) navigator.vibrate(100);
-                    }
-                });
-            }
-        ).catch(e => alert("Erreur caméra : " + e));
-    };
-
-    window.toggleFlash = function() {
-        if(!window.scannerObj) return;
-        const track = window.scannerObj.getRunningTrack();
-        const isOn = track.getSettings().torch;
-        track.applyConstraints({ advanced: [{ torch: !isOn }] })
-             .catch(() => alert("Flash non supporté sur ce navigateur."));
-    };
-
-    // --- LOGIQUE INVENTAIRE ---
-    window.switchZone = function(zone) {
-        window.currentZone = zone;
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn' + zone).classList.add('active');
-        window.renderList();
-    };
-
-    window.addFood = function() {
-        const n = document.getElementById('foodName').value;
-        const d = document.getElementById('expiryDate').value;
-        if(!n || !d) return alert("Remplis le nom et la date !");
-        
-        window.myDb.push({ id: Date.now(), name: n, date: d, zone: window.currentZone });
-        window.save(); window.renderList();
-        document.getElementById('foodName').value = "";
-    };
-
-    window.processFood = function(id, eaten) {
-        const idx = window.myDb.findIndex(i => i.id === id);
-        if(eaten) { 
-            window.myStats.eaten++; 
-            window.myStats.money += 4.50; 
-            window.myStats.co2 += 1.3; 
-        } else { 
-            window.myStats.wasted++; 
-        }
-        window.myDb.splice(idx, 1);
-        window.save(); window.renderList();
-    };
-
-    // --- INTELLIGENCE ARTIFICIELLE ---
-    window.askSub = function() {
-        const val = document.getElementById('foodName').value.toLowerCase();
-        const res = document.getElementById('aiResponse');
-        res.style.display = "block";
-        
-        if(!val) { res.innerText = "🤖 Entre un nom de produit pour trouver un remplaçant."; return; }
-        
-        const subs = {
-            'lait': "Utilise du lait d'avoine, de soja ou 1 yaourt nature.",
-            'oeuf': "Remplace par 50g de compote ou une demi-banane écrasée.",
-            'beurre': "Remplace par de l'huile de coco ou de la purée d'avocat.",
-            'creme': "Utilise du lait de coco ou du fromage blanc.",
-            'sucre': "Remplace par du miel ou du sirop d'érable."
-        };
-        
-        let found = "Je n'ai pas de substitut précis, mais essaie d'équilibrer avec un produit gras ou humide selon la recette !";
-        for(let key in subs) { if(val.includes(key)) found = subs[key]; }
-        res.innerText = "🤖 " + found;
-    };
-
-    window.askMenu = function() {
-        const res = document.getElementById('aiResponse');
-        res.style.display = "block";
-        const items = window.myDb.filter(i => i.zone === window.currentZone);
-        
-        if(items.length < 2) {
-            res.innerText = "👨‍🍳 Ajoute au moins 2 produits au " + window.currentZone + " pour une idée de recette.";
-        } else {
-            res.innerText = "👨‍🍳 Idée Menu : Avec ton " + items[0].name + " et ton " + items[1].name + ", prépare une poêlée rapide avec un peu d'huile d'olive !";
-        }
-    };
-
-    // --- RENDU ET GRAPH ---
-    window.save = function() {
-        localStorage.setItem('v20_db', JSON.stringify(window.myDb));
-        localStorage.setItem('v20_stats', JSON.stringify(window.myStats));
-    };
-
-    window.renderList = function() {
-        const list = document.getElementById('foodList');
-        list.innerHTML = "";
-        const filtered = window.myDb.filter(i => i.zone === window.currentZone);
-        
-        document.getElementById('statMoney').innerText = window.myStats.money.toFixed(1);
-        document.getElementById('statCo2').innerText = window.myStats.co2.toFixed(1);
-        
-        if(window.chartObj) {
-            window.chartObj.data.datasets[0].data = [window.myStats.eaten || 1, window.myStats.wasted];
-            window.chartObj.update();
-        }
-
-        if(filtered.length === 0) {
-            list.innerHTML = `<p style="text-align:center; color:#999; margin-top:30px;">Aucun produit dans le ${window.currentZone}</p>`;
-            return;
-        }
-
-        filtered.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(it => {
-            const diff = Math.ceil((new Date(it.date) - new Date()) / 86400000);
-            const color = diff < 0 ? "#ff7675" : (diff < 3 ? "#fdcb6e" : "#2ed573");
-            
-            list.innerHTML += `
-                <div class="food-item" style="border-left-color: ${color}">
-                    <div class="food-info">
-                        <b>${it.name}</b>
-                        <small>DLC: ${it.date} (${diff < 0 ? 'PÉRIMÉ' : 'J-' + diff})</small>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button onclick="window.processFood(${it.id}, false)" style="background:none; border:none; font-size:22px;">🗑️</button>
-                        <button onclick="window.processFood(${it.id}, true)" style="background:none; border:none; font-size:22px;">✅</button>
-                    </div>
-                </div>`;
+    window.startScan = function() {
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+            fetch(`https://world.openfoodfacts.org/api/v0/product/${text}.json`)
+            .then(r => r.json()).then(data => {
+                if(data.status === 1) document.getElementById('foodName').value = data.product.product_name;
+            });
         });
     };
 
-    // --- INIT CHART ---
-    setTimeout(() => {
-        const ctx = document.getElementById('mainChart');
-        if(ctx) {
-            window.chartObj = new Chart(ctx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Mangé', 'Jeté'],
-                    datasets: [{
-                        data: [window.myStats.eaten || 1, window.myStats.wasted],
-                        backgroundColor: ['#2ed573', '#ff7675'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-            });
-        }
-        window.renderList();
-    }, 500);
+    // --- LA MAGIE DE LA VISION IA ---
+    window.readDateOCR = async function() {
+        const loader = document.getElementById('loading-ocr');
+        loader.style.display = "block";
+        
+        try {
+            // 1. Capture d'image depuis le flux vidéo
+            const video = document.querySelector('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            // 2. Analyse Tesseract IA
+            const result = await Tesseract.recognize(canvas, 'eng', { logger: m => console.log(m) });
+            const text = result.data.text;
+            console.log("Texte détecté:", text);
 
+            // 3. Recherche d'un format de date (JJ/MM/AAAA ou JJ.MM.AA)
+            const dateRegex = /(\d{2})[\/\.\- ](\d{2})[\/\.\- ](\d{2,4})/;
+            const match = text.match(dateRegex);
+
+            if (match) {
+                let day = match[1], month = match[2], year = match[3];
+                if(year.length === 2) year = "20" + year;
+                document.getElementById('expiryDate').value = `${year}-${month}-${day}`;
+                alert("✅ IA : Date trouvée ! " + day + "/" + month + "/" + year);
+            } else {
+                alert("❌ IA : Pas de date nette trouvée. Rapproche l'appareil de la date.");
+            }
+        } catch (e) {
+            alert("Erreur Vision: " + e);
+        }
+        loader.style.display = "none";
+    };
+
+    window.save = function() {
+        const n = document.getElementById('foodName').value;
+        const d = document.getElementById('expiryDate').value;
+        if(!n || !d) return;
+        window.db.push({n, d});
+        localStorage.setItem('km_v23', JSON.stringify(window.db));
+        window.render();
+    };
+
+    window.render = function() {
+        const l = document.getElementById('list');
+        l.innerHTML = window.db.map(i => `<div class="card"><b>${i.n}</b> - ${i.d}</div>`).join('');
+    };
+
+    window.render();
 </script>
 </body>
 </html>
