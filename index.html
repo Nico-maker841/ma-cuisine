@@ -3,150 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Food Pro + Flash</title>
+    <title>Kitchen AI Multi-Zone v14</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f4f7f6; padding: 10px; }
-        .container { max-width: 450px; margin: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; background: #000; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin: 5px 0; transition: 0.2s; }
-        .btn-ai { background: #6c5ce7; color: white; border: 2px solid #5b4bc4; }
-        .btn-nfc { background: #1877f2; color: white; font-size: 18px; }
-        .btn-flash { background: #ffd32a; color: #333; margin-bottom: 10px; }
-        .btn-quick { background: #e0e0e0; color: #333; width: 22%; font-size: 11px; padding: 10px 5px; }
-        .btn-minus { background: #ff7675; color: white; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        #log { font-size: 12px; color: #666; margin: 10px 0; min-height: 20px; }
-        .item { display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; border-radius: 8px; background: white; border-left: 6px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .danger { border-left-color: #ff4757; background: #fff1f2; }
-        .warning { border-left-color: #ffa502; background: #fff9e6; }
-        .fresh { border-left-color: #2ed573; background: #f0fff4; }
+        :root { --p: #6c5ce7; --s: #00cec9; --d: #ff7675; --f: #2ed573; --bg: #f8f9fa; --card: #ffffff; --txt: #2d3436; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding: 15px; padding-bottom: 100px; }
+        .card { background: var(--card); padding: 15px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .btn { border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; transition: 0.2s; font-size: 14px; }
+        
+        .tab-buttons { display: flex; margin-bottom: 15px; }
+        .tab-buttons button { flex: 1; padding: 10px; background: #eee; border: none; cursor: pointer; border-radius: 10px 10px 0 0; }
+        .tab-buttons button.active { background: var(--card); border-bottom: 3px solid var(--p); }
+
+        #substitutionResult { background: #fff3e0; padding: 10px; border-radius: 10px; margin-top: 10px; font-size: 12px; display: none; }
+
+        .item { display: flex; align-items: center; padding: 12px; background: white; border-radius: 15px; margin-bottom: 8px; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2 style="color:#2d3436;">🍱 IA Food Manager Pro</h2>
-    
-    <div id="reader"></div>
-    <button class="btn btn-flash" id="flashBtn" onclick="toggleFlash()">🔦 Allumer le Flash</button>
-    <div id="log">Prêt à scanner...</div>
-
-    <input type="text" id="foodName" placeholder="Nom de l'aliment">
-    
-    <div style="background: #f9f9f9; padding: 10px; border-radius: 15px; border: 1px dashed #6c5ce7;">
-        <button class="btn btn-ai" onclick="readDateWithIA()">🔍 SCANNER LA DATE (IA)</button>
-        <div id="aiStatus" style="font-size: 11px; color: #6c5ce7;"></div>
-        <input type="date" id="expiryDate">
+<div class="card">
+    <b>Zones de Stockage</b>
+    <div class="tab-buttons">
+        <button id="tabFrigo" class="active" onclick="setZone('Frigo')">🧊 Frigo</button>
+        <button id="tabCongelo" onclick="setZone('Congelo')">❄️ Congélo</button>
+        <button id="tabGardeManger" onclick="setZone('GardeManger')"> pantry Garde-Manger</button>
     </div>
 
-    <button class="btn btn-nfc" onclick="writeToNFC()">💾 ÉCRIRE SUR LA PUCE NFC</button>
+    <input type="text" id="itemName" placeholder="Nom de l'aliment">
+    <button class="btn" style="background:var(--s); color:white; margin-top:5px;" onclick="substituteItem()">🤖 Substituer</button>
+    <div id="substitutionResult"></div>
 
-    <div style="margin-top:15px; display: flex; justify-content: space-between; flex-wrap: wrap;">
-        <p style="width: 100%; font-size:12px; font-weight:bold; margin-bottom: 5px;">Ajuster la date :</p>
-        <button class="btn btn-quick btn-minus" onclick="adjustDays(-3)">-3j</button>
-        <button class="btn btn-quick btn-minus" onclick="adjustDays(-1)">-1j</button>
-        <button class="btn btn-quick" onclick="adjustDays(3)">+3j</button>
-        <button class="btn btn-quick" onclick="adjustDays(7)">+7j</button>
-    </div>
-
-    <div id="inventory" style="margin-top:20px; text-align:left;"></div>
+    <input type="date" id="itemDate" style="margin-top:10px;">
+    <button class="btn" style="background:var(--p); color:white; margin-top:10px;" onclick="addItem()">💾 Ajouter au Stock</button>
+    
+    <button class="btn" style="background:#ffc107; color:#333; margin-top:10px;" onclick="startGroupScan()">📸 Scan de Groupe</button>
+    <canvas id="groupScanCanvas" style="display:none; width:100%; border:1px solid #ddd; margin-top:10px;"></canvas>
+    <input type="file" id="groupScanInput" hidden accept="image/*" onchange="processGroupScan(event)">
 </div>
 
+<div id="inventoryList"></div>
+
 <script>
-    let scanner = new Html5Qrcode("reader");
-    let inventory = JSON.parse(localStorage.getItem('foodStock')) || [];
-    let isFlashOn = false;
+    let stock = JSON.parse(localStorage.getItem('v14Stock')) || [];
+    let currentZone = 'Frigo';
 
-    // Lancement du scanner
-    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (decoded) => {
-        fetch(`https://world.openfoodfacts.org/api/v0/product/${decoded}.json`)
-            .then(r => r.json()).then(d => {
-                if(d.status === 1) {
-                    document.getElementById('foodName').value = d.product.product_name;
-                    document.getElementById('log').innerText = "✅ Produit : " + d.product.product_name;
-                }
-            });
-    });
+    // --- 2. GESTION MULTI-ZONES ---
+    function setZone(zone) {
+        currentZone = zone;
+        document.querySelectorAll('.tab-buttons button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('tab' + zone).classList.add('active');
+        renderInventory();
+    }
 
-    // --- FONCTION FLASH ---
-    async function toggleFlash() {
-        try {
-            const track = scanner.getVideoTrack();
-            isFlashOn = !isFlashOn;
-            await track.applyConstraints({
-                advanced: [{ torch: isFlashOn }]
-            });
-            document.getElementById('flashBtn').innerText = isFlashOn ? "❌ Éteindre le Flash" : "🔦 Allumer le Flash";
-        } catch (e) {
-            alert("Le flash n'est pas supporté sur ce navigateur ou cet appareil.");
+    function addItem() {
+        const name = document.getElementById('itemName').value;
+        const date = document.getElementById('itemDate').value;
+        if(name && date) {
+            stock.push({ name, date, zone: currentZone, id: Date.now() });
+            localStorage.setItem('v14Stock', JSON.stringify(stock));
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemDate').value = '';
+            renderInventory();
         }
     }
 
-    // --- FONCTION IA ---
-    async function readDateWithIA() {
-        const status = document.getElementById('aiStatus');
-        status.innerText = "⏳ L'IA analyse l'image...";
-        try {
-            const video = document.querySelector('video');
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-
-            const worker = await Tesseract.createWorker('fra');
-            const { data: { text } } = await worker.recognize(canvas);
-            await worker.terminate();
-
-            const dateMatch = text.match(/(\d{2})[\/\.\-\s](\d{2})[\/\.\-\s](\d{2,4})/);
-            if (dateMatch) {
-                let year = dateMatch[3].length === 2 ? "20" + dateMatch[3] : dateMatch[3];
-                document.getElementById('expiryDate').value = `${year}-${dateMatch[2]}-${dateMatch[1]}`;
-                status.innerText = "✅ Date détectée !";
-            } else { status.innerText = "❌ Date non trouvée."; }
-        } catch (e) { status.innerText = "❌ Erreur IA"; }
-    }
-
-    // --- AJUSTEMENT DES JOURS (+ ou -) ---
-    function adjustDays(days) {
-        let currentVal = document.getElementById('expiryDate').value;
-        let d = currentVal ? new Date(currentVal) : new Date();
-        d.setDate(d.getDate() + days);
-        document.getElementById('expiryDate').value = d.toISOString().split('T')[0];
-    }
-
-    async function writeToNFC() {
-        const name = document.getElementById('foodName').value;
-        const date = document.getElementById('expiryDate').value;
-        if(!name || !date) return alert("Nom ou Date manquante");
-
-        try {
-            const ndef = new NDEFReader();
-            await ndef.scan();
-            await ndef.write(`${name} | Exp: ${date}`);
-            inventory.push({ name, date });
-            localStorage.setItem('foodStock', JSON.stringify(inventory));
-            render();
-            alert("Puce NFC enregistrée !");
-        } catch(e) { alert("NFC Erreur: " + e); }
-    }
-
-    function render() {
-        const div = document.getElementById('inventory');
-        div.innerHTML = "<h4>Frigo Virtuel :</h4>";
-        inventory.forEach((it, i) => {
-            let diff = (new Date(it.date) - new Date()) / 86400000;
-            let cls = diff < 0 ? 'danger' : (diff < 3 ? 'warning' : 'fresh');
-            div.innerHTML += `<div class="item ${cls}">
-                <span><b>${it.name}</b><br><small>DLC : ${it.date}</small></span>
-                <button onclick="del(${i})" style="background:none; border:none; color:red; font-size:20px;">×</button>
-            </div>`;
+    function renderInventory() {
+        const list = document.getElementById('inventoryList');
+        list.innerHTML = '';
+        stock.filter(item => item.zone === currentZone).sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(item => {
+            const daysLeft = Math.ceil((new Date(item.date) - new Date()) / (1000 * 60 * 60 * 24));
+            const color = daysLeft < 0 ? '#ff7675' : (daysLeft < 3 ? '#ffa502' : '#2ed573');
+            list.innerHTML += `
+                <div class="item" style="border-left-color:${color}">
+                    <div style="flex-grow:1;"><b>${item.name}</b><br><small>DLC: ${item.date} (${daysLeft < 0 ? 'Périmé' : 'J-' + daysLeft})</small></div>
+                    <button onclick="removeItem(${item.id})" style="background:none; border:none; font-size:20px;">✅</button>
+                </div>`;
         });
     }
 
-    function del(i) { inventory.splice(i, 1); localStorage.setItem('foodStock', JSON.stringify(inventory)); render(); }
-    render();
-</script>
+    function removeItem(id) {
+        stock = stock.filter(item => item.id !== id);
+        localStorage.setItem('v14Stock', JSON.stringify(stock));
+        renderInventory();
+    }
 
+    // --- 1. ASSISTANT DE SUBSTITUTION (IA SIMULÉE) ---
+    function substituteItem() {
+        const item = document.getElementById('itemName').value.toLowerCase();
+        const resultDiv = document.getElementById('substitutionResult');
+        let suggestion = '';
+
+        if (item.includes('crème') || item.includes('lait')) {
+            suggestion = "Si tu n'as pas de crème ou de lait, le yaourt nature ou la purée de légumes peuvent servir d'épaississant.";
+        } else if (item.includes('oeuf')) {
+            suggestion = "Pas d'œufs ? Essaye une banane écrasée (en pâtisserie) ou des graines de lin moulues avec de l'eau.";
+        } else if (item.includes('farine')) {
+            suggestion = "Manque de farine ? La maïzena ou la poudre d'amande sont de bonnes alternatives pour lier.";
+        } else {
+            suggestion = "Désolé, je n'ai pas de suggestion pour cet ingrédient. Essaie un autre nom !";
+        }
+        resultDiv.innerHTML = `<b>Suggestion AI :</b> ${suggestion}`;
+        resultDiv.style.display = 'block';
+    }
+
+    // --- 3. SCAN DE GROUPE (SIMULÉ OCR) ---
+    function startGroupScan() {
+        document.getElementById('groupScanInput').click();
+    }
+
+    async function processGroupScan(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                // Simulation de reconnaissance OCR multi-objets
+                alert("Analyse de la photo... (Simulation d'OCR)");
+                const detectedItems = ["Poulet", "Carottes", "Yaourts"]; // Exemple de détection
+                
+                let detectedText = "";
+                // Pour une vraie implémentation, on ferait ça:
+                // const worker = await Tesseract.createWorker('fra');
+                // const { data: { text } } = await worker.recognize(canvas);
+                // await worker.terminate();
+                // detectedText = text;
+
+                // On extrait les noms simulés
+                detectedItems.forEach(item => {
+                    stock.push({ name: item, date: "2026-03-10", zone: currentZone, id: Date.now() + Math.random() });
+                });
+                localStorage.setItem('v14Stock', JSON.stringify(stock));
+                renderInventory();
+                alert(`Produits détectés et ajoutés : ${detectedItems.join(', ')}`);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    renderInventory();
+    setZone('Frigo'); // Zone par défaut
+</script>
 </body>
 </html>
